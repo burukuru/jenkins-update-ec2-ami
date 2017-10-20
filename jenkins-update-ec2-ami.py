@@ -11,10 +11,35 @@ jenkins_base_url = os.environ['JENKINS_URL']
 ami_profile_name = os.environ['AMI_PROFILE_NAME']
 jenkins_auth_user = os.environ['JENKINS_AUTH_USER']
 jenkins_auth_password = os.environ['JENKINS_AUTH_PASSWORD']
+jenkins_crumb_header_name = ""
+jenkins_crumb_header_value = ""
+verify_ssl = True
 aws_region = os.getenv('AWS_REGION', 'us-east-1')
 ec2_cloud_instance = os.getenv('EC2_CLOUD_INSTANCE', 'aws_us-east-1')
 output_error_string = os.getenv('OUTPUT_ERROR_STRING', 'Error:')
 build_output_text = ""
+
+def get_crumb_url():
+    request_url = jenkins_base_url.replace('https://', '');
+    if not request_url.endswith('/'):
+        request_url = '%s/' % request_url
+    return 'https://%s:%s@%scrumbIssuer/api/json' % (
+            jenkins_auth_user,
+            jenkins_auth_password,
+            request_url)
+
+def get_jenkins_crumb():
+    global jenkins_crumb_header_name
+    global jenkins_crumb_header_value
+
+    if jenkins_crumb_header_value:
+        return jenkins_crumb_header_value
+
+    crumb_url = get_crumb_url()
+    r = requests.get(crumb_url, verify=verify_ssl)
+    jenkins_crumb_header_name = r.json()["crumbRequestField"]
+    jenkins_crumb_header_value = r.json()["crumb"]
+    return jenkins_crumb_header_value
 
 def get_jenkins_build_output():
     global build_url
@@ -28,7 +53,8 @@ def get_jenkins_build_output():
     jenkins_url = '%slogText/progressiveText' % build_url
 
     payload = {'start': '1'}
-    r = requests.post(jenkins_url, verify=False, data=payload)
+    headers = {jenkins_crumb_header_name: jenkins_crumb_header_value}
+    r = requests.get(jenkins_url, verify=verify_ssl,  headers=headers)
     if not r.status_code == 200:
         print 'HTTP POST to Jenkins URL %s resulted in %s' % (jenkins_url, r.status_code)
         print r.headers
@@ -88,7 +114,8 @@ def get_jenkins_ami_id():
         println(foundAmi)
         """ % (ec2_cloud_instance, ami_profile_name)
     payload = {'script': groovy_script}
-    r = requests.post(groovy_url, verify=False, data=payload)
+    headers = {jenkins_crumb_header_name: jenkins_crumb_header_value}
+    r = requests.post(groovy_url, verify=verify_ssl, data=payload, headers=headers)
     if not r.status_code == 200:
         print 'HTTP POST to Jenkins URL %s resulted in %s' % (groovy_url, r.status_code)
         print r.headers
@@ -117,7 +144,8 @@ def update_jenkins_ami_id(ami_id):
         println(foundAmi)
         """ % (ec2_cloud_instance, ami_profile_name, ami_id)
     payload = {'script': groovy_script}
-    r = requests.post(groovy_url, verify=False, data=payload)
+    headers = {jenkins_crumb_header_name: jenkins_crumb_header_value}
+    r = requests.post(groovy_url, verify=verify_ssl, data=payload, headers=headers)
     if not r.status_code == 200:
         print 'HTTP POST to Jenkins URL %s resulted in %s' % (groovy_url, r.status_code)
         print r.headers
@@ -138,8 +166,11 @@ def main():
     #       - Delete the old AMI in AWS
     #       - Pass the build
 
+    get_jenkins_crumb()
+
     error_lines = get_error_lines(get_jenkins_build_output())
     packer_ami_id = get_packer_ami_id(get_jenkins_build_output())
+
     if error_lines:
         print error_lines
         print "Deleting newly created AMI %s" % packer_ami_id
