@@ -78,7 +78,7 @@ def get_error_lines(build_output):
     return retval
 
 def get_packer_ami_id(build_output):
-    regex = re.compile(r'.*,amazon-ebs,artifact,.*(ami-.*)$', re.MULTILINE)
+    regex = re.compile(r'.*amazon-ebs: AMIs were created.*\n.*(ami-.*)$', re.MULTILINE)
     matches = [m.groups() for m in regex.finditer(build_output)]
     for m in matches:
         return m[0].strip()
