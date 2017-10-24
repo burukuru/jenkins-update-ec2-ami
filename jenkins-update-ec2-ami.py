@@ -48,9 +48,13 @@ def get_jenkins_build_output():
     if build_output_text:
         return build_output_text
 
+    build_url = build_url.replace('https://', '');
     if not build_url.endswith('/'):
         build_url = '%s/' % build_url
-    jenkins_url = '%slogText/progressiveText' % build_url
+    jenkins_url = 'https://%s:%s@%slogText/progressiveText' % (
+            jenkins_auth_user,
+            jenkins_auth_password,
+            build_url)
 
     payload = {'start': '1'}
     headers = {jenkins_crumb_header_name: jenkins_crumb_header_value}
