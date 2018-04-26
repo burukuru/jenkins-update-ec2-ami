@@ -156,7 +156,10 @@ def update_jenkins_ami_id(ami_id):
         print r.text
         sys.exit(1)
 
-    return r.text.strip() == "yes"
+    if ami_id:
+        return r.text.strip() == "yes"
+    else:
+        print 'AMI ID is not present. Not updating Jenkins'
 
 def main():
     # Very high level overview of how this is supposed to work:
@@ -186,7 +189,10 @@ def main():
         print "Could not find (current) Jenkins AMI ID -- moving on"
 
     update_success = update_jenkins_ami_id(packer_ami_id)
-    if not update_success:
+
+    if update_success:
+        print "Jenkins AMI has been updated to %s" % packer_ami_id
+    else:
         print "Ran into an error when attempting to update the Jenkins AMI ID"
         print "Deleting newly created AMI %s" % packer_ami_id
         delete_ami(packer_ami_id)
