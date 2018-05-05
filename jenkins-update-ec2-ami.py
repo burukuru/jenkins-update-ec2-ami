@@ -185,6 +185,8 @@ def main():
     if not old_jenkins_ami_id:
         print "Could not find (current) Jenkins AMI ID -- moving on"
 
+    print "New AMI ID: %s, Old AMI ID: %s" % (packer_ami_id, old_jenkins_ami_id)
+
     update_success = update_jenkins_ami_id(packer_ami_id)
     if not update_success:
         print "Ran into an error when attempting to update the Jenkins AMI ID"
