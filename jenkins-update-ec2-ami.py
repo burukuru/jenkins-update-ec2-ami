@@ -160,6 +160,7 @@ def update_jenkins_ami_id(ami_id):
         return r.text.strip() == "yes"
     else:
         print 'AMI ID is not present. Not updating Jenkins'
+        return False
 
 def main():
     # Very high level overview of how this is supposed to work:
